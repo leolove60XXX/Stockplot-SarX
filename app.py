@@ -131,11 +131,10 @@ if st.session_state.submitted:
             df['SAR'] = sar_values
             df['Trend'] = trend_values
             
-            # --- 重點修改：繪製 K 線圖 ---
+            # --- 繪圖區 (修正假日空格問題) ---
             fig = go.Figure()
 
-            # 1. 繪製 Candlestick (開高低收)
-            # 台股習慣：漲是紅 (increasing), 跌是綠 (decreasing)
+            # 1. 繪製 Candlestick
             fig.add_trace(go.Candlestick(
                 x=df.index,
                 open=df['Open'],
@@ -143,8 +142,8 @@ if st.session_state.submitted:
                 low=df['Low'],
                 close=df['Close'],
                 name='K線',
-                increasing_line_color='#FF4B4B',  # 紅色
-                decreasing_line_color='#008000'   # 綠色
+                increasing_line_color='#FF4B4B',
+                decreasing_line_color='#008000'
             ))
 
             # 2. SAR 點位
@@ -154,19 +153,31 @@ if st.session_state.submitted:
             fig.add_trace(go.Scatter(
                 x=up_trend.index, y=up_trend['SAR'],
                 name='多頭支撐', mode='markers',
-                marker=dict(color='#FF4B4B', size=4, symbol='circle') # 紅點
+                marker=dict(color='#FF4B4B', size=4, symbol='circle')
             ))
 
             fig.add_trace(go.Scatter(
                 x=down_trend.index, y=down_trend['SAR'],
                 name='空頭壓力', mode='markers',
-                marker=dict(color='#008000', size=4, symbol='circle') # 綠點
+                marker=dict(color='#008000', size=4, symbol='circle')
             ))
+
+            # 3. 計算並隱藏假日 (關鍵修改步驟)
+            # 建立一個從「開始日」到「結束日」的完整日曆
+            dt_all = pd.date_range(start=df.index[0], end=df.index[-1])
+            # 找出「你的資料(df.index)」裡沒有的日期 -> 這些就是週末或假日
+            dt_breaks = dt_all.difference(df.index).strftime("%Y-%m-%d").tolist()
+
+            fig.update_xaxes(
+                rangebreaks=[
+                    dict(values=dt_breaks)  # 隱藏這些日期
+                ]
+            )
 
             # 優化圖表顯示
             fig.update_layout(
                 xaxis_title=None, yaxis_title='價格',
-                xaxis_rangeslider_visible=False, # 隱藏下方原本的縮放條，讓畫面更乾淨
+                xaxis_rangeslider_visible=False,
                 hovermode="x unified", 
                 template="plotly_white", 
                 height=600,
